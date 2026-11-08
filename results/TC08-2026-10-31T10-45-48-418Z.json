@@ -1,0 +1,40 @@
+{
+  "testCase": "TC-08",
+  "status": "ONCHAIN_PASS_UI_PENDING",
+  "contractAddress": "0x6477737c1e22B207C9eCB0F495ea0336D0D55Cc4",
+  "chainIdExpected": 11155111,
+  "batchId": "2",
+  "note": "WEB_TC8",
+  "timestampUtc": "2026-10-31T10:45:48.419Z",
+  "transaction": {
+    "transactionHash": "0xaec9c70380bf54f0a9eb692d737c3bb1fb9a023bb536300a0e6d79b10c78b6a2",
+    "status": "CONFIRMED",
+    "startUtc": "2026-10-31T10:45:49.053Z",
+    "hashReceivedUtc": "2026-10-31T10:45:49.814Z",
+    "blockNumber": 12033326,
+    "gasUsed": "134544",
+    "totalSeconds": 13.3501591,
+    "timeToHashSeconds": 0.7608933999999999,
+    "waitForReceiptSeconds": 12.5892657,
+    "gasPriceWei": "21",
+    "feeWei": "2825424",
+    "getBatchSeconds": 0.10606780000000071
+  },
+  "uiVerification": "PENDING_MANUAL_SCREENSHOTS",
+  "before": {
+    "id": "2",
+    "name": "Sữa Tươi Vinamilk 1L",
+    "productionDate": "2025-12-03",
+    "factory": "Nhà máy Bình Dương",
+    "ipfsHash": "bafkreid4k6d2exntnyvp64enbqnycibjdqbmrduh7kx52odvqshqv7bnki",
+    "status": "0"
+  },
+  "after": {
+    "id": "2",
+    "name": "Sữa Tươi Vinamilk 1L",
+    "productionDate": "2025-12-03",
+    "factory": "Nhà máy Bình Dương",
+    "ipfsHash": "bafkreid4k6d2exntnyvp64enbqnycibjdqbmrduh7kx52odvqshqv7bnki",
+    "status": "1"
+  }
+}

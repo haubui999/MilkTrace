@@ -1,0 +1,24 @@
+{
+  "testCase": "TC-01",
+  "status": "PASS",
+  "timestampUtc": "2026-10-31T09:11:12.675Z",
+  "network": "Ethereum Sepolia",
+  "chainId": 11155111,
+  "deployerAddress": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "contractAddress": "0x6477737c1e22B207C9eCB0F495ea0336D0D55Cc4",
+  "transactionHash": "0xb7b8b379688432eeed1423f0b391fa442d02d81177410954a6705743c8493c52",
+  "blockNumber": 12032852,
+  "transactionStatus": 1,
+  "gasUsed": "9686598",
+  "gasPriceWei": "1000000000",
+  "transactionFeeWei": "9686598000000000",
+  "latencySeconds": 12.0246473,
+  "owner": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "batchCount": "0",
+  "checks": {
+    "ownerEqualsDeployer": true,
+    "qualityLabEqualsDeployer": true,
+    "initialBatchCountIsZero": true
+  }
+}

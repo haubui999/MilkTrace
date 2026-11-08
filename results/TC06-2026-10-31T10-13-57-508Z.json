@@ -1,0 +1,61 @@
+{
+  "testCase": "TC-06",
+  "status": "PASS",
+  "network": "Ethereum Sepolia",
+  "chainId": 11155111,
+  "contractAddress": "0x6477737c1e22B207C9eCB0F495ea0336D0D55Cc4",
+  "walletAddress": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "timestampUtc": "2026-10-31T10:13:57.510Z",
+  "purpose": "Kiem tra nhay trang thai 0 -> 3",
+  "input": {
+    "name": "Sua kiem thu nhay trang thai TC-06",
+    "productionDate": "2026-10-31",
+    "factory": "Nha may mo phong TC-06",
+    "ipfsHash": "CID_TC06_DEMO_NOT_VERIFIED"
+  },
+  "updateNote": "JUMP_03",
+  "steps": [
+    {
+      "action": "createBatch",
+      "status": "PASS",
+      "transactionHash": "0x6ca09cdde3751ae683f0c3455e5780a7de0e12112cfd15eefd86cb44cf32f898",
+      "startUtc": "2026-10-31T10:13:58.073Z",
+      "hashReceivedUtc": "2026-10-31T10:13:58.866Z",
+      "batchId": "4",
+      "blockNumber": 12033167,
+      "gasUsed": "815621",
+      "gasPriceWei": "21",
+      "transactionFeeWei": "17128041",
+      "totalSeconds": 13.737397399999999,
+      "timeToHashSeconds": 0.7926507,
+      "waitForReceiptSeconds": 12.9447467,
+      "statusAfter": "0",
+      "eventVerified": true
+    },
+    {
+      "action": "updateStatus",
+      "fromStatus": 0,
+      "toStatus": 3,
+      "note": "JUMP_03",
+      "noteBytes": 7,
+      "status": "PASS",
+      "transactionHash": "0xfd15d69f036d0b5f3f47912e0ecfea916542228c9172a8ccdd72970f11ac73da",
+      "startUtc": "2026-10-31T10:14:12.402Z",
+      "hashReceivedUtc": "2026-10-31T10:14:13.266Z",
+      "batchId": "4",
+      "blockNumber": 12033168,
+      "gasUsed": "134544",
+      "gasPriceWei": "21",
+      "transactionFeeWei": "2825424",
+      "totalSeconds": 13.507894,
+      "timeToHashSeconds": 0.8644831999999988,
+      "waitForReceiptSeconds": 12.643410800000002,
+      "getBatchSeconds": 0.11995119999999952,
+      "statusAfter": "3",
+      "eventVerified": true
+    }
+  ],
+  "batchCountBefore": "3",
+  "batchId": "4",
+  "finding": "Hop dong cho phep nhay truc tiep tu Created(0) sang Distributed(3)"
+}

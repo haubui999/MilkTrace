@@ -1,0 +1,38 @@
+{
+  "testCase": "TC-09",
+  "contractAddress": "0x6477737c1e22B207C9eCB0F495ea0336D0D55Cc4",
+  "network": "Ethereum Sepolia",
+  "timestampUtc": "2026-10-31T10:52:54.497Z",
+  "method": "eth_call + kiem tra giao dien thu cong",
+  "status": "ONCHAIN_PASS_UI_PENDING",
+  "checks": [
+    {
+      "type": "NO_ID",
+      "status": "ONCHAIN_PASS_UI_PENDING",
+      "expectedBatchId": "4",
+      "expectedName": "Sua kiem thu nhay trang thai TC-06",
+      "expectedProductionDate": "2026-10-31",
+      "expectedFactory": "Nha may mo phong TC-06",
+      "expectedStatusCode": "3",
+      "expectedStatusText": "Da phan phoi"
+    },
+    {
+      "type": "INVALID_ID",
+      "batchId": "0",
+      "status": "PASS",
+      "revertReason": "Invalid ID",
+      "onchainGasUsed": null,
+      "transactionHash": null
+    },
+    {
+      "type": "INVALID_ID",
+      "batchId": "5",
+      "status": "PASS",
+      "revertReason": "Invalid ID",
+      "onchainGasUsed": null,
+      "transactionHash": null
+    }
+  ],
+  "batchCount": "4",
+  "expectedInvalidHighId": "5"
+}

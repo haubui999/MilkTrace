@@ -1,0 +1,62 @@
+{
+  "testCase": "TC-07",
+  "status": "PASS",
+  "timestampUtc": "2026-10-31T10:29:26.113Z",
+  "network": "Ethereum Sepolia",
+  "contractAddress": "0x6477737c1e22B207C9eCB0F495ea0336D0D55Cc4",
+  "ownerWallet": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "newLabAddress": "0xecd96cCE84fb31A0aBBD386Ef16E5d6C40c102C6",
+  "batchId": "2",
+  "method": "2 on-chain setQualityLab transactions; 2 staticCall permission tests",
+  "transactions": [
+    {
+      "label": "set-new-lab",
+      "status": "CONFIRMED",
+      "destination": "0xecd96cCE84fb31A0aBBD386Ef16E5d6C40c102C6",
+      "transactionHash": "0x646056031fa5df6261bfce8b341d79a5008c60d32b3244f61363f5b6df92c1a7",
+      "startedUtc": "2026-10-31T10:29:26.603Z",
+      "blockNumber": 12033244,
+      "gasUsed": "30361",
+      "gasPriceWei": "21",
+      "feeWei": "637581",
+      "timeToHashSeconds": 0.6766823,
+      "totalSeconds": 13.2623684
+    },
+    {
+      "label": "restore-old-lab",
+      "status": "CONFIRMED",
+      "destination": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+      "transactionHash": "0x49cb8d4332e07551895fba6bb3a049e80ce47d965b942c4eb116673d97b2230c",
+      "startedUtc": "2026-10-31T10:29:40.575Z",
+      "blockNumber": 12033245,
+      "gasUsed": "30349",
+      "gasPriceWei": "21",
+      "feeWei": "637329",
+      "timeToHashSeconds": 0.7162115000000012,
+      "totalSeconds": 9.205490099999999
+    }
+  ],
+  "permissionChecks": [
+    {
+      "who": "newLab",
+      "mode": "staticCall",
+      "result": "AUTHORIZED",
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "who": "oldLab",
+      "mode": "staticCall",
+      "result": "REJECTED_AS_EXPECTED",
+      "revertReason": "Not authorized: only quality lab",
+      "transactionHash": null,
+      "onchainGasUsed": null
+    }
+  ],
+  "originalLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "before": {
+    "batchCount": "4",
+    "batch2Status": "0"
+  },
+  "restoredOriginalLab": true
+}

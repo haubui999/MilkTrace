@@ -1,0 +1,52 @@
+{
+  "testCase": "TC-04",
+  "network": "Sepolia",
+  "contractAddress": "0x6477737c1e22B207C9eCB0F495ea0336D0D55Cc4",
+  "unauthorizedWallet": "0x2e838cEd81314Ea685718FD60c76eB806270992b",
+  "method": "eth_call/staticCall",
+  "status": "PASS",
+  "timestampUtc": "2026-10-31T09:59:47.096Z",
+  "cases": [
+    {
+      "function": "createBatch",
+      "expectedReason": "Not authorized: only owner",
+      "actualReason": "Not authorized: only owner",
+      "status": "PASS",
+      "durationSeconds": 0.1413858,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "function": "updateStatus",
+      "expectedReason": "Not authorized: only quality lab",
+      "actualReason": "Not authorized: only quality lab",
+      "status": "PASS",
+      "durationSeconds": 0.1345657000000001,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "function": "setQualityLab",
+      "expectedReason": "Not authorized: only owner",
+      "actualReason": "Not authorized: only owner",
+      "status": "PASS",
+      "durationSeconds": 0.13977390000000015,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    }
+  ],
+  "before": {
+    "owner": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "batchCount": "3",
+    "batch2Status": "0",
+    "batch2Name": "Sữa Tươi Vinamilk 1L"
+  },
+  "after": {
+    "owner": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "batchCount": "3",
+    "batch2Status": "0",
+    "batch2Name": "Sữa Tươi Vinamilk 1L"
+  }
+}
