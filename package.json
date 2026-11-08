@@ -1,0 +1,22 @@
+{
+  "name": "code",
+  "version": "1.0.0",
+  "description": "",
+  "main": "create_batch (2).js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "hardhat": "^3.19.0",
+    "qrcodejs": "^1.0.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.2.2",
+    "ethers": "^6.17.0"
+  }
+}
