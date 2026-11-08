@@ -5,7 +5,7 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 // ========================================
-// 1. CAU HINH
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
 // ========================================
 
 const RPC_URL =
@@ -17,13 +17,14 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 if (!PRIVATE_KEY || !ADDRESS || !ethers.isAddress(ADDRESS)) {
   throw new Error(
-    "Kiem tra PRIVATE_KEY va CONTRACT_ADDRESS trong .env"
+    "Missing or invalid PRIVATE_KEY or CONTRACT_ADDRESS in the .env file"
   );
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
+// Smart contract ABI
 const abi = [
   "function qualityLab() view returns (address)",
   "function batchCount() view returns (uint256)",
@@ -38,7 +39,7 @@ const contract = new ethers.Contract(
 );
 
 // ========================================
-// 2. TAO FILE LUU KET QUA
+// 2. EXPERIMENTAL RESULT FILE
 // ========================================
 
 const runId = new Date()
@@ -54,10 +55,11 @@ const report = {
   network: "Ethereum Sepolia",
   contractAddress: ADDRESS,
   walletAddress: wallet.address,
-  method: "eth_call (khong gui giao dich)",
+  method: "eth_call (no transaction broadcast)",
   cases: []
 };
 
+// Save experimental results to a JSON file.
 function save() {
   fs.mkdirSync("results", {
     recursive: true
@@ -71,9 +73,11 @@ function save() {
 }
 
 // ========================================
-// 3. KIEM TRA DU LIEU TRUOC VA SAU
+// 3. CAPTURE THE CONTRACT STATE
 // ========================================
 
+// Read the contract state before and after
+// the invalid batch ID tests.
 async function snapshot() {
   const [count, lab, batch1, batch2] =
     await Promise.all([
@@ -92,9 +96,11 @@ async function snapshot() {
 }
 
 // ========================================
-// 4. HAM KIEM TRA REVERT
+// 4. VERIFY EVM REVERT BEHAVIOR
 // ========================================
 
+// Verify that calls using invalid batch IDs
+// are rejected with the expected revert reason.
 async function expectRevert(
   name,
   expectedReason,
@@ -110,17 +116,18 @@ async function expectRevert(
     caught = error;
   }
 
-  // Neu ID sai nhung ham van thanh cong => FAIL
+  // If the operation succeeds despite an invalid ID,
+  // the test must fail.
   assert.ok(
     caught,
-    `${name}: Lenh da thanh cong du ID sai`
+    `${name}: The operation succeeded despite an invalid batch ID`
   );
 
-  // Chi chap nhan EVM revert, khong chap
-  // nhan loi mat ket noi RPC la PASS
+  // Accept only an EVM revert (CALL_EXCEPTION).
+  // RPC or network failures must not be classified as PASS.
   assert.ok(
     ethers.isError(caught, "CALL_EXCEPTION"),
-    `${name}: Loi khong phai EVM revert (ma: ${caught.code ?? "unknown"})`
+    `${name}: Error is not an EVM revert (code: ${caught.code ?? "unknown"})`
   );
 
   const actualReason =
@@ -128,13 +135,15 @@ async function expectRevert(
     caught.revert?.args?.[0] ??
     null;
 
-  // Phai dung chinh xac ly do revert
+  // Verify that the actual revert reason
+  // exactly matches the expected reason.
   assert.equal(
     actualReason,
     expectedReason,
-    `${name}: Sai ly do revert`
+    `${name}: Revert reason does not match the expected value`
   );
 
+  // Record the successful negative test.
   const row = {
     name,
     status: "PASS",
@@ -150,42 +159,46 @@ async function expectRevert(
   save();
 
   console.log(`${name}: PASS`);
-  console.log(`  Revert: ${actualReason}`);
+  console.log(`  Revert reason: ${actualReason}`);
 }
 
 // ========================================
-// 5. CHAY TC-05
+// 5. EXECUTE TC-05
 // ========================================
 
 async function main() {
   save();
 
   try {
-    // Kiem tra mang Sepolia
+    // 5.1. Verify the Ethereum Sepolia network.
     const net = await provider.getNetwork();
 
     assert.equal(
       net.chainId,
       11155111n,
-      "Khong phai Sepolia"
+      "The RPC endpoint is not connected to Ethereum Sepolia"
     );
 
-    // Ghi nhan trang thai ban dau
+    // 5.2. Capture the initial contract state.
     const before = await snapshot();
 
+    // Verify that three batches were created during TC-02.
     assert.ok(
       BigInt(before.batchCount) >= 3n,
-      "Chua du 3 lo tu TC-02"
+      "At least three batches from TC-02 must exist"
     );
 
-    // Dam bao khong nham loi ID voi loi phan quyen
+    // Confirm that the connected wallet has qualityLab
+    // authorization so that authorization errors
+    // are not confused with invalid ID errors.
     assert.equal(
       before.qualityLab.toLowerCase(),
       wallet.address.toLowerCase(),
-      "Vi khong co quyen qualityLab"
+      "The connected wallet is not the authorized quality laboratory"
     );
 
-    // Lay ID sai dua tren batchCount thuc te
+    // Calculate an invalid batch ID based
+    // on the current on-chain batch count.
     const invalidHighId =
       BigInt(before.batchCount) + 1n;
 
@@ -196,20 +209,20 @@ async function main() {
 
     save();
 
-    console.log("===== BAT DAU TC-05 =====");
-    console.log("Contract:", ADDRESS);
-    console.log("BatchCount:", before.batchCount);
+    console.log("===== STARTING TC-05 =====");
+    console.log("Contract address:", ADDRESS);
+    console.log("Current batch count:", before.batchCount);
     console.log(
-      "ID vuot pham vi:",
+      "Out-of-range batch ID:",
       invalidHighId.toString()
     );
 
     console.log(
-      "Chi su dung eth_call, khong gui giao dich."
+      "Only eth_call/staticCall is used. No transactions will be broadcast."
     );
 
     // ----------------------------------------
-    // TH1: updateStatus voi ID = 0
+    // TEST CASE 1: updateStatus WITH ID = 0
     // ----------------------------------------
 
     await expectRevert(
@@ -224,7 +237,7 @@ async function main() {
     );
 
     // ----------------------------------------
-    // TH2: updateStatus voi ID > batchCount
+    // TEST CASE 2: updateStatus WITH ID > batchCount
     // ----------------------------------------
 
     await expectRevert(
@@ -239,7 +252,7 @@ async function main() {
     );
 
     // ----------------------------------------
-    // TH3: getBatch voi ID = 0
+    // TEST CASE 3: getBatch WITH ID = 0
     // ----------------------------------------
 
     await expectRevert(
@@ -249,7 +262,7 @@ async function main() {
     );
 
     // ----------------------------------------
-    // TH4: getBatch voi ID > batchCount
+    // TEST CASE 4: getBatch WITH ID > batchCount
     // ----------------------------------------
 
     await expectRevert(
@@ -258,16 +271,19 @@ async function main() {
       () => contract.getBatch(invalidHighId)
     );
 
-    // ----------------------------------------
-    // Kiem tra trang thai khong thay doi
-    // ----------------------------------------
+    // ========================================
+    // 6. VERIFY CONTRACT STATE IMMUTABILITY
+    // ========================================
 
+    // Capture the contract state after all tests.
     const after = await snapshot();
 
+    // Verify that invalid ID calls did not modify
+    // any monitored smart contract state.
     assert.deepEqual(
       after,
       before,
-      "Du lieu thay doi sau TC-05"
+      "The contract state changed after invalid ID tests"
     );
 
     report.after = after;
@@ -276,11 +292,11 @@ async function main() {
     save();
 
     console.log(
-      "Trang thai truoc/sau khong doi: PASS"
+      "Contract state unchanged before and after testing: PASS"
     );
 
     console.log("===== TC-05 PASS =====");
-    console.log("Da luu:", output);
+    console.log("Experimental results saved to:", output);
 
   } catch (error) {
     report.status = "FAIL_OR_INCOMPLETE";
@@ -289,7 +305,7 @@ async function main() {
     save();
 
     console.error(
-      "TC-05 CHUA DAT:",
+      "TC-05 FAILED OR INCOMPLETE:",
       error.message
     );
 

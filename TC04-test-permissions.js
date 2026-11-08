@@ -5,7 +5,7 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 // =====================================
-// 1. CAU HINH
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
 // =====================================
 
 const RPC_URL =
@@ -16,16 +16,18 @@ const ADDRESS = process.env.CONTRACT_ADDRESS;
 
 if (!ADDRESS || !ethers.isAddress(ADDRESS)) {
   throw new Error(
-    "CONTRACT_ADDRESS khong hop le trong .env"
+    "Invalid CONTRACT_ADDRESS in the .env file"
   );
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
-// Vi ngau nhien: khong co quyen va khong can ETH
+// Generate a random unauthorized wallet.
+// No ETH is required because the tests use staticCall.
 const stranger =
   ethers.Wallet.createRandom().connect(provider);
 
+// Smart contract ABI
 const abi = [
   "function owner() view returns(address)",
   "function qualityLab() view returns(address)",
@@ -43,7 +45,7 @@ const contract = new ethers.Contract(
 );
 
 // =====================================
-// 2. FILE KET QUA
+// 2. EXPERIMENTAL RESULT FILE
 // =====================================
 
 const runId = new Date()
@@ -63,6 +65,7 @@ const report = {
   cases: []
 };
 
+// Save experimental results to a JSON file.
 function save() {
   fs.mkdirSync("results", {
     recursive: true
@@ -76,9 +79,11 @@ function save() {
 }
 
 // =====================================
-// 3. CHUP TRANG THAI HOP DONG
+// 3. CAPTURE THE SMART CONTRACT STATE
 // =====================================
 
+// Read the contract state before and after
+// the unauthorized access tests.
 async function snapshot() {
   const [owner, lab, count, batch2] =
     await Promise.all([
@@ -98,9 +103,11 @@ async function snapshot() {
 }
 
 // =====================================
-// 4. KIEM TRA REVERT
+// 4. VERIFY EVM REVERT BEHAVIOR
 // =====================================
 
+// Confirm that unauthorized function calls
+// are rejected with the expected revert reason.
 async function testRevert(
   name,
   expected,
@@ -116,18 +123,20 @@ async function testRevert(
     caught = error;
   }
 
-  // Neu ham khong bi tu choi => FAIL
+  // If the function succeeds instead of reverting,
+  // the test must fail.
   if (!caught) {
     throw new Error(
-      `${name}: KHONG bi tu choi - test FAIL`
+      `${name}: Call was not rejected - TEST FAILED`
     );
   }
 
-  // Chi chap nhan loi EVM revert,
-  // khong chap nhan loi mat mang/RPC
+  // Accept only an EVM revert (CALL_EXCEPTION).
+  // Network or RPC errors must not be treated
+  // as successful authorization tests.
   if (!ethers.isError(caught, "CALL_EXCEPTION")) {
     throw new Error(
-      `${name}: Loi khong phai EVM revert, code=${caught.code || "unknown"}`
+      `${name}: Error is not an EVM revert, code=${caught.code || "unknown"}`
     );
   }
 
@@ -136,13 +145,15 @@ async function testRevert(
     caught.revert?.args?.[0] ??
     null;
 
-  // Phai dung chinh xac revert reason
+  // Verify that the actual revert reason
+  // exactly matches the expected reason.
   assert.equal(
     actual,
     expected,
-    `${name}: Revert reason khong dung`
+    `${name}: Revert reason does not match the expected value`
   );
 
+  // Record the successful negative test result.
   report.cases.push({
     function: name,
     expectedReason: expected,
@@ -157,28 +168,31 @@ async function testRevert(
   save();
 
   console.log(`${name}: PASS`);
-  console.log(`  Revert: ${actual}`);
+  console.log(`  Revert reason: ${actual}`);
 }
 
 // =====================================
-// 5. CHAY TC-04
+// 5. EXECUTE TC-04
 // =====================================
 
 async function main() {
   save();
 
   try {
+    // 5.1. Verify the Ethereum Sepolia network
     const network = await provider.getNetwork();
 
     assert.equal(
       network.chainId,
       11155111n,
-      "RPC khong phai Sepolia"
+      "The RPC endpoint is not connected to Ethereum Sepolia"
     );
 
+    // 5.2. Capture the initial contract state
     const before = await snapshot();
 
-    // Vi la khong duoc trung owner/lab
+    // Verify that the randomly generated wallet
+    // is neither the contract owner nor the quality lab.
     assert.notEqual(
       stranger.address.toLowerCase(),
       before.owner.toLowerCase()
@@ -189,34 +203,37 @@ async function main() {
       before.qualityLab.toLowerCase()
     );
 
+    // Verify that Batch 2 was created during TC-02.
     assert.ok(
       BigInt(before.batchCount) >= 2n,
-      "Can co batch 2 tu TC-02"
+      "Batch 2 from TC-02 must exist before executing TC-04"
     );
 
     report.before = before;
 
-    console.log("===== BAT DAU TC-04 =====");
-    console.log("Contract:", ADDRESS);
+    console.log("===== STARTING TC-04 =====");
+    console.log("Contract address:", ADDRESS);
     console.log(
-      "Vi khong duoc cap quyen:",
+      "Unauthorized wallet address:",
       stranger.address
     );
 
     console.log(
-      "Khong gui transaction, chi dung staticCall."
+      "No transactions will be broadcast. All permission tests use staticCall."
     );
 
     // ---------------------------------
-    // TH1: Vi la tao lo
+    // TEST CASE 1: UNAUTHORIZED BATCH CREATION
     // ---------------------------------
 
+    // An unauthorized wallet attempts to create
+    // a new milk batch.
     await testRevert(
       "createBatch",
       "Not authorized: only owner",
       () =>
         contract.createBatch.staticCall(
-          "SUA_GIA",
+          "FRESH_MILK_1L",
           "2026-10-31",
           "DEMO",
           "CID_DEMO"
@@ -224,9 +241,11 @@ async function main() {
     );
 
     // ---------------------------------
-    // TH2: Vi la cap nhat lo 2
+    // TEST CASE 2: UNAUTHORIZED STATUS UPDATE
     // ---------------------------------
 
+    // An unauthorized wallet attempts to update
+    // the status of Batch 2.
     await testRevert(
       "updateStatus",
       "Not authorized: only quality lab",
@@ -239,9 +258,11 @@ async function main() {
     );
 
     // ---------------------------------
-    // TH3: Vi la gan qualityLab
+    // TEST CASE 3: UNAUTHORIZED ROLE ASSIGNMENT
     // ---------------------------------
 
+    // An unauthorized wallet attempts to change
+    // the authorized quality laboratory address.
     await testRevert(
       "setQualityLab",
       "Not authorized: only owner",
@@ -252,15 +273,18 @@ async function main() {
     );
 
     // ---------------------------------
-    // Kiem tra du lieu khong thay doi
+    // 6. VERIFY CONTRACT STATE IMMUTABILITY
     // ---------------------------------
 
+    // Capture the contract state after all tests.
     const after = await snapshot();
 
+    // Verify that unauthorized calls did not
+    // modify the smart contract state.
     assert.deepEqual(
       after,
       before,
-      "Trang thai hop dong da thay doi"
+      "The smart contract state changed after unauthorized calls"
     );
 
     report.after = after;
@@ -269,11 +293,11 @@ async function main() {
     save();
 
     console.log(
-      "Trang thai truoc/sau khong doi: PASS"
+      "Contract state unchanged before and after testing: PASS"
     );
 
     console.log("===== TC-04 PASS =====");
-    console.log("Ket qua:", outfile);
+    console.log("Experimental results saved to:", outfile);
 
   } catch (error) {
     report.status = "FAIL_OR_INCOMPLETE";
@@ -282,7 +306,7 @@ async function main() {
     save();
 
     console.error(
-      "TC-04 chua dat:",
+      "TC-04 FAILED OR INCOMPLETE:",
       error.message
     );
 

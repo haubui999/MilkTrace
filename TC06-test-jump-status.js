@@ -5,10 +5,10 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 // ==========================================
-// TC-06: KIEM THU NHAY TRANG THAI 0 -> 3
+// TC-06: TEST DIRECT STATUS TRANSITION FROM 0 TO 3
 // ==========================================
 
-// 1. CAU HINH KET NOI
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
 const RPC_URL =
   process.env.SEPOLIA_RPC_URL ||
   "https://ethereum-sepolia-rpc.publicnode.com";
@@ -18,14 +18,14 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 if (!ADDRESS || !ethers.isAddress(ADDRESS) || !PRIVATE_KEY) {
   throw new Error(
-    "Thieu PRIVATE_KEY hoac CONTRACT_ADDRESS hop le trong .env"
+    "Missing PRIVATE_KEY or a valid CONTRACT_ADDRESS in the .env file"
   );
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
-// 2. ABI CUA HOP DONG
+// 2. SMART CONTRACT ABI
 const abi = [
   "function owner() view returns(address)",
   "function qualityLab() view returns(address)",
@@ -43,18 +43,18 @@ const contract = new ethers.Contract(
   wallet
 );
 
-// 3. DU LIEU MINH HOA CHO LO MOI
+// 3. SIMULATED INPUT DATA FOR A NEW BATCH
 const input = {
-  name: "Sua kiem thu nhay trang thai TC-06",
-  productionDate: "2026-10-31",
-  factory: "Nha may mo phong TC-06",
+  name: "Fresh Milk 1L",
+  productionDate: "2026-11-08",
+  factory: "Dairy Processing Plant, Binh Duong",
   ipfsHash: "CID_TC06_DEMO_NOT_VERIFIED"
 };
 
-// Ghi chu 7 byte, cung do dai voi TC-03
+// Seven-byte note, consistent with the input length in TC-03
 const note = "JUMP_03";
 
-// 4. TAO FILE LUU KET QUA
+// 4. EXPERIMENTAL RESULT FILE
 const runId = new Date()
   .toISOString()
   .replace(/[:.]/g, "-");
@@ -69,7 +69,7 @@ const report = {
   contractAddress: ADDRESS,
   walletAddress: wallet.address,
   timestampUtc: new Date().toISOString(),
-  purpose: "Kiem tra nhay trang thai 0 -> 3",
+  purpose: "Test direct status transition from Created (0) to Distributed (3)",
   input,
   updateNote: note,
   steps: []
@@ -85,7 +85,7 @@ function save() {
   );
 }
 
-// 5. TIM EVENT TRONG RECEIPT
+// 5. FIND AN EVENT IN THE TRANSACTION RECEIPT
 function findEvent(receipt, name) {
   return receipt.logs
     .filter(
@@ -103,7 +103,7 @@ function findEvent(receipt, name) {
     .find(event => event?.name === name);
 }
 
-// 6. LUU RECEIPT GOC
+// 6. SAVE THE ORIGINAL TRANSACTION RECEIPT
 async function saveReceipt(txHash, step) {
   const raw = await provider.send(
     "eth_getTransactionReceipt",
@@ -112,7 +112,7 @@ async function saveReceipt(txHash, step) {
 
   assert.ok(
     raw,
-    `Khong lay duoc receipt goc buoc ${step}`
+    `Unable to retrieve the original receipt for step ${step}`
   );
 
   fs.writeFileSync(
@@ -122,27 +122,27 @@ async function saveReceipt(txHash, step) {
   );
 }
 
-// 7. CHUONG TRINH CHINH
+// 7. MAIN TEST PROCEDURE
 async function main() {
   save();
 
   try {
-    // Kiem tra mang
+    // Verify the selected Ethereum network
     const network = await provider.getNetwork();
 
     assert.equal(
       network.chainId,
       11155111n,
-      "RPC khong phai Sepolia"
+      "The RPC endpoint is not connected to Ethereum Sepolia"
     );
 
     assert.notEqual(
       await provider.getCode(ADDRESS),
       "0x",
-      "Dia chi khong co contract"
+      "No smart contract exists at the specified address"
     );
 
-    // Kiem tra owner va qualityLab
+    // Verify owner and qualityLab authorization
     const [owner, qualityLab, countBefore] =
       await Promise.all([
         contract.owner(),
@@ -153,31 +153,31 @@ async function main() {
     assert.equal(
       owner.toLowerCase(),
       wallet.address.toLowerCase(),
-      "Vi khong phai owner"
+      "The connected wallet is not the contract owner"
     );
 
     assert.equal(
       qualityLab.toLowerCase(),
       wallet.address.toLowerCase(),
-      "Vi khong phai qualityLab"
+      "The connected wallet is not the authorized quality laboratory"
     );
 
     report.batchCountBefore = countBefore.toString();
     save();
 
-    console.log("===== BAT DAU TC-06 =====");
+    console.log("===== STARTING TC-06 =====");
     console.log("Contract:", ADDRESS);
-    console.log("Vi kiem thu:", wallet.address);
+    console.log("Test wallet:", wallet.address);
     console.log(
-      "BatchCount ban dau:",
+      "Initial batch count:",
       countBefore.toString()
     );
 
     // ======================================
-    // BUOC 1: TAO LO MOI
+    // STEP 1: CREATE A NEW BATCH
     // ======================================
 
-    console.log("\n===== BUOC 1: TAO LO MOI =====");
+    console.log("\n===== STEP 1: CREATE A NEW BATCH =====");
 
     const startCreateUtc = new Date().toISOString();
     const t0 = performance.now();
@@ -202,15 +202,15 @@ async function main() {
     report.steps.push(createRecord);
     save();
 
-    console.log("Tx hash tao lo:", txCreate.hash);
-    console.log("Dang cho xac nhan...");
+    console.log("Batch creation transaction hash:", txCreate.hash);
+    console.log("Waiting for transaction confirmation...");
 
     const createReceipt = await txCreate.wait(1);
     const t2 = performance.now();
 
     assert.ok(
       createReceipt,
-      "Khong nhan duoc receipt tao lo"
+      "Batch creation transaction receipt was not received"
     );
 
     await saveReceipt(txCreate.hash, "create");
@@ -218,10 +218,10 @@ async function main() {
     assert.equal(
       createReceipt.status,
       1,
-      "Giao dich tao lo that bai"
+      "Batch creation transaction failed"
     );
 
-    // Lay ID tu event BatchCreated
+    // Extract the batch ID from the BatchCreated event
     const createdEvent = findEvent(
       createReceipt,
       "BatchCreated"
@@ -229,7 +229,7 @@ async function main() {
 
     assert.ok(
       createdEvent,
-      "Khong tim thay BatchCreated"
+      "BatchCreated event was not found"
     );
 
     const batchId = createdEvent.args[0];
@@ -249,7 +249,7 @@ async function main() {
       countBefore + 1n
     );
 
-    // Doc lai lo vua tao
+    // Read the newly created batch from the blockchain
     const beforeJump = await contract.getBatch(batchId);
 
     assert.equal(beforeJump.id, batchId);
@@ -266,10 +266,10 @@ async function main() {
     assert.equal(
       beforeJump.status,
       0n,
-      "Lo moi khong o trang thai Created (0)"
+      "The newly created batch is not in Created (0)"
     );
 
-    // Ghi ket qua tao lo
+    // Record batch creation results
     Object.assign(createRecord, {
       status: "PASS",
       batchId: batchId.toString(),
@@ -298,23 +298,23 @@ async function main() {
     report.batchId = batchId.toString();
     save();
 
-    console.log("Tao lo: PASS");
+    console.log("Batch creation: PASS");
     console.log("Batch ID:", batchId.toString());
-    console.log("Trang thai ban dau: Created (0)");
+    console.log("Initial status: Created (0)");
     console.log("Gas used:", createRecord.gasUsed);
 
     console.log(
-      "Thoi gian:",
+      "Total transaction latency:",
       createRecord.totalSeconds.toFixed(3),
-      "giay"
+      "seconds"
     );
 
     // ======================================
-    // BUOC 2: NHAY TRANG THAI 0 -> 3
+    // STEP 2: BYPASS INTERMEDIATE STATES (0 -> 3)
     // ======================================
 
     console.log(
-      "\n===== BUOC 2: NHAY TRANG THAI 0 -> 3 ====="
+      "\n===== STEP 2: BYPASS INTERMEDIATE STATES (0 -> 3) ====="
     );
 
     assert.equal(
@@ -325,7 +325,7 @@ async function main() {
     const startUpdateUtc = new Date().toISOString();
     const u0 = performance.now();
 
-    // Bo qua Checked va Approved
+    // Skip the Checked and Approved states
     const txUpdate = await contract.updateStatus(
       batchId,
       3,
@@ -349,15 +349,15 @@ async function main() {
     report.steps.push(updateRecord);
     save();
 
-    console.log("Tx hash cap nhat:", txUpdate.hash);
-    console.log("Dang cho xac nhan...");
+    console.log("Status update transaction hash:", txUpdate.hash);
+    console.log("Waiting for transaction confirmation...");
 
     const updateReceipt = await txUpdate.wait(1);
     const u2 = performance.now();
 
     assert.ok(
       updateReceipt,
-      "Khong nhan duoc receipt cap nhat"
+      "Status update transaction receipt was not received"
     );
 
     await saveReceipt(txUpdate.hash, "jump");
@@ -365,10 +365,10 @@ async function main() {
     assert.equal(
       updateReceipt.status,
       1,
-      "Giao dich cap nhat that bai"
+      "Status update transaction failed"
     );
 
-    // Kiem tra event StatusUpdated
+    // Verify the StatusUpdated event
     const updatedEvent = findEvent(
       updateReceipt,
       "StatusUpdated"
@@ -376,7 +376,7 @@ async function main() {
 
     assert.ok(
       updatedEvent,
-      "Khong tim thay StatusUpdated"
+      "StatusUpdated event was not found"
     );
 
     assert.equal(updatedEvent.args[0], batchId);
@@ -384,7 +384,7 @@ async function main() {
     assert.equal(updatedEvent.args[2], note);
 
     // ======================================
-    // BUOC 3: DOC LAI TRANG THAI
+    // STEP 3: VERIFY THE UPDATED ON-CHAIN STATUS
     // ======================================
 
     const readStart = performance.now();
@@ -394,14 +394,14 @@ async function main() {
     const getBatchSeconds =
       (performance.now() - readStart) / 1000;
 
-    // Phai nhay truc tiep thanh Distributed (3)
+    // Confirm the direct transition to Distributed (3)
     assert.equal(
       afterJump.status,
       3n,
-      "Khong nhay duoc sang Distributed"
+      "The direct transition to Distributed (3) did not succeed"
     );
 
-    // Thong tin lo khong thay doi
+    // Verify that the remaining batch attributes are unchanged
     assert.equal(afterJump.id, beforeJump.id);
     assert.equal(afterJump.name, beforeJump.name);
 
@@ -426,7 +426,7 @@ async function main() {
     );
 
     // ======================================
-    // BUOC 4: LUU SO LIEU
+    // STEP 4: RECORD GAS CONSUMPTION AND LATENCY
     // ======================================
 
     Object.assign(updateRecord, {
@@ -458,30 +458,30 @@ async function main() {
     report.status = "PASS";
 
     report.finding =
-      "Hop dong cho phep nhay truc tiep tu Created(0) sang Distributed(3)";
+      "The contract permits a direct transition from Created (0) to Distributed (3), bypassing the intermediate quality states";
 
     save();
 
-    console.log("Nhay trang thai: PASS");
+    console.log("Direct status transition observed: PASS");
     console.log("Batch ID:", batchId.toString());
     console.log("Gas used:", updateRecord.gasUsed);
 
     console.log(
-      "Thoi gian:",
+      "Total transaction latency:",
       updateRecord.totalSeconds.toFixed(3),
-      "giay"
+      "seconds"
     );
 
     console.log(
-      "Thoi gian getBatch:",
+      "getBatch read latency:",
       getBatchSeconds.toFixed(3),
-      "giay"
+      "seconds"
     );
 
-    console.log("Trang thai cuoi: Distributed (3)");
+    console.log("Final status: Distributed (3)");
 
     console.log("\n===== TC-06 PASS =====");
-    console.log("Da luu:", resultPath);
+    console.log("Experimental results saved to:", resultPath);
 
   } catch (error) {
     report.status = "FAIL_OR_INCOMPLETE";
@@ -490,12 +490,12 @@ async function main() {
     save();
 
     console.error(
-      "TC-06 CHUA HOAN TAT:",
+      "TC-06 FAILED OR INCOMPLETE:",
       error.message
     );
 
     console.error(
-      "Neu da co tx hash, KHONG chay lai truoc khi kiem tra receipt!"
+      "If a transaction hash exists, inspect its on-chain receipt before rerunning!"
     );
 
     process.exitCode = 1;

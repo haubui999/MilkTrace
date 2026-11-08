@@ -5,11 +5,14 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 // =========================================
-// TC-09: KIEM TRA URL KHONG CO ID
-// VA URL CO ID KHONG HOP LE
+// TC-09: TEST URL BEHAVIOR WITH MISSING
+// AND INVALID BATCH IDS
 // =========================================
 
-// 1. CAU HINH
+// =========================================
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
+// =========================================
+
 const RPC_URL =
   process.env.SEPOLIA_RPC_URL ||
   "https://ethereum-sepolia-rpc.publicnode.com";
@@ -18,12 +21,13 @@ const ADDRESS = process.env.CONTRACT_ADDRESS;
 
 if (!ADDRESS || !ethers.isAddress(ADDRESS)) {
   throw new Error(
-    "CONTRACT_ADDRESS trong .env khong hop le"
+    "Invalid CONTRACT_ADDRESS in the .env file"
   );
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 
+// Smart contract ABI
 const abi = [
   "function batchCount() view returns(uint256)",
   "function getBatch(uint256) view returns(tuple(uint256 id,string name,string productionDate,string factory,string ipfsHash,uint8 status))"
@@ -35,14 +39,19 @@ const contract = new ethers.Contract(
   provider
 );
 
+// English labels corresponding to the
+// four MilkTrace batch status codes.
 const statuses = [
-  "Moi khoi tao",
-  "Da kiem dinh",
-  "Da phe duyet",
-  "Da phan phoi"
+  "Created",
+  "Checked",
+  "Approved",
+  "Distributed"
 ];
 
-// 2. FILE KET QUA
+// =========================================
+// 2. EXPERIMENTAL RESULT FILE
+// =========================================
+
 const runId = new Date()
   .toISOString()
   .replace(/[:.]/g, "-");
@@ -54,11 +63,12 @@ const report = {
   contractAddress: ADDRESS,
   network: "Ethereum Sepolia",
   timestampUtc: new Date().toISOString(),
-  method: "eth_call + kiem tra giao dien thu cong",
+  method: "eth_call + manual UI verification",
   status: "IN_PROGRESS",
   checks: []
 };
 
+// Save experimental evidence to a JSON file.
 function save() {
   fs.mkdirSync("results", {
     recursive: true
@@ -71,7 +81,12 @@ function save() {
   );
 }
 
-// 3. KIEM TRA ID KHONG HOP LE
+// =========================================
+// 3. VERIFY INVALID BATCH ID HANDLING
+// =========================================
+
+// Verify that getBatch rejects invalid IDs
+// with the expected EVM revert reason.
 async function checkInvalidId(id) {
   let caught = null;
 
@@ -81,22 +96,27 @@ async function checkInvalidId(id) {
     caught = error;
   }
 
+  // The contract must reject the invalid ID.
   assert.ok(
     caught,
-    `ID ${id} khong bi tu choi`
+    `Batch ID ${id} was not rejected`
   );
 
+  // Accept only an EVM revert.
+  // Network or RPC errors must not count as PASS.
   assert.ok(
     ethers.isError(caught, "CALL_EXCEPTION"),
-    `ID ${id}: Loi khong phai EVM revert`
+    `Batch ID ${id}: Error is not an EVM revert`
   );
 
+  // Verify the exact revert reason.
   assert.equal(
     caught.reason,
     "Invalid ID",
-    `ID ${id}: Sai revert reason`
+    `Batch ID ${id}: Unexpected revert reason`
   );
 
+  // Record the successful negative test.
   report.checks.push({
     type: "INVALID_ID",
     batchId: id.toString(),
@@ -109,59 +129,75 @@ async function checkInvalidId(id) {
   save();
 
   console.log(
-    `ID=${id}: PASS - ${caught.reason}`
+    `Batch ID=${id}: PASS - ${caught.reason}`
   );
 }
 
-// 4. CHAY KIEM THU
+// =========================================
+// 4. MAIN TEST PROCEDURE
+// =========================================
+
 async function main() {
   save();
 
   try {
+    // 4.1. Verify the Ethereum Sepolia network.
     const network = await provider.getNetwork();
 
     assert.equal(
       network.chainId,
       11155111n,
-      "RPC khong phai Sepolia"
+      "The RPC endpoint is not connected to Ethereum Sepolia"
     );
 
+    // Verify that a smart contract exists
+    // at the configured address.
     const code = await provider.getCode(ADDRESS);
 
     assert.notEqual(
       code,
       "0x",
-      "Khong co contract tai dia chi nay"
+      "No smart contract exists at the specified address"
     );
 
-    console.log("===== BAT DAU TC-09 =====");
-    console.log("Contract:", ADDRESS);
+    console.log("===== STARTING TC-09 =====");
+    console.log("Contract address:", ADDRESS);
 
-    // ---------------------------------
-    // TH1: KHONG CO ID
-    // ---------------------------------
+    // =========================================
+    // TEST CASE 1: URL WITHOUT A BATCH ID
+    // =========================================
 
+    // When no batch ID is specified in the URL,
+    // the MilkTrace website should display
+    // the most recently created batch.
     const count = await contract.batchCount();
 
+    // At least four batches must exist:
+    // three from TC-02 and one from TC-06.
     assert.ok(
       count >= 4n,
-      "Khong du 4 lo tu TC-01 den TC-08"
+      "At least four batches must exist before executing TC-09"
     );
 
+    // Retrieve the most recently created batch.
     const newest = await contract.getBatch(count);
 
     assert.equal(
       newest.id,
       count,
-      "ID lo moi nhat khong khop batchCount"
+      "The latest batch ID does not match batchCount"
     );
 
+    // Convert the on-chain status code
+    // into its corresponding English label.
     const expectedStatus =
       statuses[Number(newest.status)] ??
-      "Khong xac dinh";
+      "Unknown";
 
     report.batchCount = count.toString();
 
+    // Record the expected website display.
+    // Manual UI verification is still required.
     report.checks.push({
       type: "NO_ID",
       status: "ONCHAIN_PASS_UI_PENDING",
@@ -176,69 +212,87 @@ async function main() {
 
     save();
 
-    console.log("\n===== TH1: URL KHONG CO ID =====");
+    console.log("\n===== TEST CASE 1: URL WITHOUT ID =====");
+
     console.log(
-      "BatchCount:",
+      "Current batch count:",
       count.toString()
     );
+
     console.log(
-      "Lo moi nhat:",
+      "Latest batch ID:",
       newest.id.toString()
     );
-    console.log("San pham:", newest.name);
-    console.log("Trang thai:", expectedStatus);
+
+    console.log("Product name:", newest.name);
+    console.log("Expected status:", expectedStatus);
 
     console.log(
-      "Mo: http://localhost:8080/index.html"
+      "Open: http://localhost:8080/index.html"
     );
 
-    // ---------------------------------
-    // TH2: ID = 0
-    // ---------------------------------
+    // =========================================
+    // TEST CASE 2: URL WITH BATCH ID = 0
+    // =========================================
 
-    console.log("\n===== TH2: ID = 0 =====");
+    // Batch ID 0 is invalid because
+    // valid MilkTrace batch IDs start from 1.
+    console.log("\n===== TEST CASE 2: BATCH ID = 0 =====");
 
     await checkInvalidId(0n);
 
     console.log(
-      "Mo: http://localhost:8080/index.html?id=0"
+      "Open: http://localhost:8080/index.html?id=0"
     );
 
-    // ---------------------------------
-    // TH3: ID > BATCHCOUNT
-    // ---------------------------------
+    // =========================================
+    // TEST CASE 3: URL WITH OUT-OF-RANGE ID
+    // =========================================
 
+    // Generate an invalid ID greater than
+    // the current number of batches.
     const invalidHighId = count + 1n;
 
     console.log(
-      "\n===== TH3: ID VUOT BATCHCOUNT ====="
+      "\n===== TEST CASE 3: BATCH ID EXCEEDS BATCH COUNT ====="
     );
 
     await checkInvalidId(invalidHighId);
 
     console.log(
-      `Mo: http://localhost:8080/index.html?id=${invalidHighId}`
+      `Open: http://localhost:8080/index.html?id=${invalidHighId}`
     );
 
+    // =========================================
+    // 5. RECORD ON-CHAIN TEST RESULTS
+    // =========================================
+
+    // The blockchain checks have passed,
+    // but manual website verification
+    // and screenshot evidence are still required.
     report.status = "ONCHAIN_PASS_UI_PENDING";
+
     report.expectedInvalidHighId =
       invalidHighId.toString();
 
     save();
 
     console.log(
-      "\n===== KIEM TRA ONCHAIN TC-09: PASS ====="
+      "\n===== TC-09 ON-CHAIN VERIFICATION: PASS ====="
     );
 
     console.log(
-      "Can mo 3 URL va chup anh giao dien."
+      "Open the three test URLs and capture screenshots of their displayed results."
     );
 
     console.log(
-      "TC-09 chua PASS hoan toan neu chua kiem tra UI."
+      "TC-09 is not fully passed until manual UI verification is completed."
     );
 
-    console.log("Da luu:", resultPath);
+    console.log(
+      "Experimental results saved to:",
+      resultPath
+    );
 
   } catch (error) {
     report.status = "FAIL_OR_INCOMPLETE";
@@ -247,7 +301,7 @@ async function main() {
     save();
 
     console.error(
-      "TC-09 chua dat:",
+      "TC-09 FAILED OR INCOMPLETE:",
       error.message
     );
 

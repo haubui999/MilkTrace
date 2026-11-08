@@ -4,6 +4,8 @@ import "dotenv/config";
 import fs from "node:fs";
 import assert from "node:assert/strict";
 
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
+
 const RPC_URL =
   process.env.SEPOLIA_RPC_URL ||
   "https://ethereum-sepolia-rpc.publicnode.com";
@@ -13,12 +15,14 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 if (!CONTRACT_ADDRESS || !PRIVATE_KEY) {
   throw new Error(
-    "Thiếu CONTRACT_ADDRESS hoặc PRIVATE_KEY trong .env"
+    "Missing CONTRACT_ADDRESS or PRIVATE_KEY in the .env file."
   );
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+
+// 2. SMART CONTRACT ABI
 
 const abi = [
   "function owner() view returns (address)",
@@ -34,14 +38,18 @@ const contract = new ethers.Contract(
   wallet
 );
 
-// Dữ liệu minh họa, không phải lô sản xuất thực tế
+// 3. SIMULATED BATCH DATA
+// Experimental data only; not an actual production batch.
+
 const sample = {
-  name: "Sữa Tươi Vinamilk 1L",
-  productionDate: "2025-12-03",
-  factory: "Nhà máy Bình Dương",
+  name: "Fresh Milk 1L",
+  productionDate: "2026-11-08",
+  factory: "Dairy Processing Plant, Binh Duong",
   ipfsHash:
     "bafkreid4k6d2exntnyvp64enbqnycibjdqbmrduh7kx52odvqshqv7bnki"
 };
+
+// 4. EXPERIMENTAL RESULT FILE
 
 const runId = new Date()
   .toISOString()
@@ -59,8 +67,10 @@ const report = {
   transactions: []
 };
 
+// Save experimental results to a JSON file.
 function saveReport() {
   fs.mkdirSync("results", { recursive: true });
+
   fs.writeFileSync(
     resultFile,
     JSON.stringify(report, null, 2),
@@ -68,44 +78,52 @@ function saveReport() {
   );
 }
 
+// 5. MAIN TEST PROCEDURE
+
 async function main() {
   saveReport();
 
   try {
-    console.log("===== BAT DAU TC-02 =====");
+    console.log("===== STARTING TC-02 =====");
 
+    // Verify the Ethereum Sepolia network.
     const network = await provider.getNetwork();
 
     assert.equal(
       network.chainId,
       11155111n,
-      "Không phải mạng Sepolia"
+      "Incorrect network. Ethereum Sepolia is required."
     );
 
+    // Verify that the connected wallet is the contract owner.
     const owner = await contract.owner();
 
     assert.equal(
       owner.toLowerCase(),
       wallet.address.toLowerCase(),
-      "Ví đang dùng không phải owner"
+      "The connected wallet is not the contract owner."
     );
 
+    // Record the initial batch count.
     const initialCount = await contract.batchCount();
 
     report.initialBatchCount = initialCount.toString();
 
-    console.log("Contract:", CONTRACT_ADDRESS);
-    console.log("Owner:", wallet.address);
-    console.log("BatchCount ban đầu:", initialCount.toString());
+    console.log("Contract address:", CONTRACT_ADDRESS);
+    console.log("Owner address:", wallet.address);
+    console.log("Initial batch count:", initialCount.toString());
 
+    // Create three batches with identical input data.
     for (let i = 1; i <= 3; i++) {
-      console.log(`\n===== TAO LO THU ${i} =====`);
+      console.log(`\n===== CREATING BATCH ${i} =====`);
 
       const countBefore = await contract.batchCount();
 
+      // Record the transaction submission start time.
       const startUtc = new Date().toISOString();
       const t0 = performance.now();
 
+      // Submit the createBatch transaction.
       const tx = await contract.createBatch(
         sample.name,
         sample.productionDate,
@@ -113,21 +131,32 @@ async function main() {
         sample.ipfsHash
       );
 
+      // Record the time when the transaction hash is received.
       const hashReceivedUtc = new Date().toISOString();
       const t1 = performance.now();
 
-      console.log("Tx hash:", tx.hash);
-      console.log("Đang chờ xác nhận...");
+      console.log("Transaction hash:", tx.hash);
+      console.log("Waiting for transaction confirmation...");
 
+      // Wait for one blockchain confirmation.
       const receipt = await tx.wait(1);
 
       const receiptReceivedUtc = new Date().toISOString();
       const t2 = performance.now();
 
-      assert.ok(receipt, "Không nhận được receipt");
-      assert.equal(receipt.status, 1, "Giao dịch thất bại");
+      assert.ok(
+        receipt,
+        "Transaction receipt was not received."
+      );
 
-      // Lấy ID từ sự kiện, không lấy từ batchCount
+      assert.equal(
+        receipt.status,
+        1,
+        "Batch creation transaction failed."
+      );
+
+      // Extract the batch ID from the BatchCreated event,
+      // rather than relying on the batchCount getter.
       const event = receipt.logs
         .filter(
           (log) =>
@@ -143,40 +172,49 @@ async function main() {
         })
         .find((item) => item?.name === "BatchCreated");
 
-      assert.ok(event, "Không tìm thấy sự kiện BatchCreated");
+      assert.ok(
+        event,
+        "BatchCreated event was not found."
+      );
 
       const batchId = event.args[0];
 
       const countAfter = await contract.batchCount();
       const batch = await contract.getBatch(batchId);
 
-      // Kiểm tra bộ đếm
+      // 6. VERIFY BATCH COUNTER CONSISTENCY
+
       assert.equal(
         countAfter,
         countBefore + 1n,
-        "batchCount không tăng đúng 1"
+        "Batch count did not increase by exactly one."
       );
 
       assert.equal(
         batchId,
         countAfter,
-        "ID từ sự kiện không khớp batchCount"
+        "Batch ID from the event does not match batchCount."
       );
 
-      // Kiểm tra dữ liệu lưu trên blockchain
+      // 7. VERIFY THE DATA STORED ON THE BLOCKCHAIN
+
       assert.equal(batch.id, batchId);
       assert.equal(batch.name, sample.name);
+
       assert.equal(
         batch.productionDate,
         sample.productionDate
       );
+
       assert.equal(batch.factory, sample.factory);
       assert.equal(batch.ipfsHash, sample.ipfsHash);
       assert.equal(batch.status, 0n);
 
-      // Kiểm tra dữ liệu trong sự kiện
+      // Verify the attributes emitted by BatchCreated.
       assert.equal(event.args[1], sample.name);
       assert.equal(event.args[2], sample.factory);
+
+      // 8. COLLECT GAS CONSUMPTION AND LATENCY DATA
 
       const gasUsed = receipt.gasUsed;
       const gasPrice = receipt.gasPrice;
@@ -209,7 +247,8 @@ async function main() {
       report.transactions.push(row);
       saveReport();
 
-      // Lưu receipt gốc cho từng giao dịch
+      // 9. SAVE THE ORIGINAL TRANSACTION RECEIPT
+
       const rawReceipt = await provider.send(
         "eth_getTransactionReceipt",
         [tx.hash]
@@ -221,38 +260,45 @@ async function main() {
         "utf8"
       );
 
-      console.log("Kết quả: PASS");
+      // 10. DISPLAY INDIVIDUAL BATCH RESULTS
+
+      console.log("Test result: PASS");
       console.log("Batch ID:", batchId.toString());
       console.log("Gas used:", gasUsed.toString());
+
       console.log(
-        "Thời gian tổng:",
+        "Total transaction latency:",
         row.totalSeconds.toFixed(3),
-        "giây"
+        "seconds"
       );
     }
+
+    // 11. VERIFY THE FINAL BATCH COUNT
 
     const finalCount = await contract.batchCount();
 
     assert.equal(
       finalCount,
       initialCount + 3n,
-      "Tổng số lô không tăng đúng 3"
+      "Total batch count did not increase by three."
     );
 
     report.finalBatchCount = finalCount.toString();
     report.status = "PASS";
     saveReport();
 
-    console.log("\n===== TC-02 PASS =====");
-    console.log("Đã tạo 3 lô thành công.");
-    console.log("Đã lưu:", resultFile);
+    // 12. DISPLAY FINAL EXPERIMENTAL RESULTS
+
+    console.log("\n===== TC-02 PASSED =====");
+    console.log("Three batches were created successfully.");
+    console.log("Experimental results saved to:", resultFile);
 
   } catch (error) {
     report.status = "FAIL_OR_INCOMPLETE";
     report.error = error.message;
     saveReport();
 
-    console.error("TC-02 chưa đạt:", error.message);
+    console.error("TC-02 FAILED OR INCOMPLETE:", error.message);
     process.exitCode = 1;
   }
 }

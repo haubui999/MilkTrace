@@ -3,97 +3,98 @@ import { network } from "hardhat";
 import fs from "node:fs";
 import assert from "node:assert/strict";
 
-// TC-01: Kiểm tra constructor ngay sau khi triển khai
+// TC-01: Verify constructor initialization after deployment
 
 async function main() {
-  console.log("===== BAT DAU TC-01 =====");
+  console.log("===== STARTING TC-01 =====");
 
-  // Kết nối mạng được chọn trong lệnh Hardhat
+  // Connect to the network specified in the Hardhat command
   const { ethers } = await network.connect();
 
-  // Kiểm tra đúng mạng Sepolia
+  // Verify that the selected network is Ethereum Sepolia
   const networkInfo = await ethers.provider.getNetwork();
 
   assert.equal(
     networkInfo.chainId,
     11155111n,
-    "Sai mạng! Phải chạy trên Ethereum Sepolia."
+    "Incorrect network! Ethereum Sepolia is required."
   );
 
-  // Lấy ví triển khai
+  // Retrieve the deployer account
   const [deployer] = await ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
 
-  console.log("Ví triển khai:", deployerAddress);
+  console.log("Deployer address:", deployerAddress);
   console.log("Chain ID:", networkInfo.chainId.toString());
 
-  // Bắt đầu đo thời gian ở phía máy khách
+  // Start measuring client-observed deployment latency
   const startTime = performance.now();
 
-  // Triển khai hợp đồng mới
-  console.log("Đang triển khai VinamilkTrace...");
+  // Deploy a new MilkTrace smart contract
+  console.log("Deploying MilkTrace...");
 
   const contract = await ethers.deployContract(
-    "VinamilkTrace"
+    "MilkTrace"
   );
 
   const deploymentTx = contract.deploymentTransaction();
 
   if (!deploymentTx) {
-    throw new Error("Không lấy được giao dịch triển khai.");
+    throw new Error("Unable to retrieve the deployment transaction.");
   }
 
   console.log("Transaction hash:", deploymentTx.hash);
 
-  // Chờ giao dịch có 1 xác nhận
+  // Wait for one transaction confirmation
   const receipt = await deploymentTx.wait(1);
 
   const latencySeconds =
     (performance.now() - startTime) / 1000;
 
-  assert.ok(receipt, "Không lấy được receipt.");
+  assert.ok(receipt, "Transaction receipt not found.");
 
   assert.equal(
     receipt.status,
     1,
-    "Giao dịch triển khai không thành công."
+    "Smart contract deployment failed."
   );
 
   const contractAddress = await contract.getAddress();
 
-  // Đọc trạng thái ngay sau triển khai
+  // Read the contract state immediately after deployment
   const owner = await contract.owner();
   const qualityLab = await contract.qualityLab();
   const batchCount = await contract.batchCount();
 
-  // Các điều kiện kiểm thử
+  // Verify constructor initialization conditions
   assert.equal(
     owner.toLowerCase(),
     deployerAddress.toLowerCase(),
-    "Owner không bằng ví triển khai."
+    "Contract owner does not match the deployer address."
   );
 
   assert.equal(
     qualityLab.toLowerCase(),
     deployerAddress.toLowerCase(),
-    "QualityLab không bằng ví triển khai."
+    "Quality laboratory address does not match the deployer address."
   );
 
   assert.equal(
     batchCount,
     0n,
-    "Hợp đồng mới phải có batchCount = 0."
+    "A newly deployed contract must have batchCount = 0."
   );
 
-  // Lấy biên nhận thô từ RPC
+  // Retrieve the original transaction receipt from the RPC endpoint
   const rawReceipt = await ethers.provider.send(
     "eth_getTransactionReceipt",
     [deploymentTx.hash]
   );
 
-  // Lưu bằng chứng
+  // Create the directory for experimental evidence
   fs.mkdirSync("results", { recursive: true });
 
+  // Prepare the structured experimental result
   const result = {
     testCase: "TC-01",
     status: "PASS",
@@ -124,33 +125,37 @@ async function main() {
     },
   };
 
+  // Save the structured test result
   fs.writeFileSync(
     "results/TC01-result.json",
     JSON.stringify(result, null, 2),
     "utf8"
   );
 
+  // Save the original blockchain transaction receipt
   fs.writeFileSync(
     "results/TC01-receipt.json",
     JSON.stringify(rawReceipt, null, 2),
     "utf8"
   );
 
-  console.log("\n===== KET QUA TC-01 =====");
-  console.log("Kết quả: PASS");
-  console.log("Contract:", contractAddress);
+  // Display the test results
+  console.log("\n===== TC-01 TEST RESULTS =====");
+  console.log("Test status: PASS");
+  console.log("Contract address:", contractAddress);
   console.log("Owner:", owner);
-  console.log("QualityLab:", qualityLab);
-  console.log("BatchCount:", batchCount.toString());
-  console.log("Block:", receipt.blockNumber);
+  console.log("Quality laboratory:", qualityLab);
+  console.log("Batch count:", batchCount.toString());
+  console.log("Block number:", receipt.blockNumber);
   console.log("Gas used:", receipt.gasUsed.toString());
+
   console.log(
-    "Thời gian quan sát:",
+    "Client-observed deployment latency:",
     latencySeconds.toFixed(3),
-    "giây"
+    "seconds"
   );
 
-  console.log("\nĐã lưu:");
+  console.log("\nExperimental evidence saved:");
   console.log("results/TC01-result.json");
   console.log("results/TC01-receipt.json");
 }

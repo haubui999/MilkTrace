@@ -5,7 +5,7 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 // =========================================
-// 1. CAU HINH
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
 // =========================================
 
 const RPC_URL =
@@ -15,12 +15,13 @@ const RPC_URL =
 const ADDRESS = process.env.CONTRACT_ADDRESS;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
-// Batch 2 tu TC-02, van o trang thai Created
+// Batch 2 was created during TC-02
+// and should remain in the Created state.
 const BATCH_ID = 2n;
 
 if (!ADDRESS || !ethers.isAddress(ADDRESS) || !PRIVATE_KEY) {
   throw new Error(
-    "Kiem tra PRIVATE_KEY va CONTRACT_ADDRESS trong .env"
+    "Missing PRIVATE_KEY or a valid CONTRACT_ADDRESS in the .env file"
   );
 }
 
@@ -31,11 +32,13 @@ const ownerWallet = new ethers.Wallet(
   provider
 );
 
-// Vi thu nghiem ngau nhien.
-// Chi staticCall, khong can nap ETH.
+// Generate a random wallet for authorization testing.
+// Only staticCall is used with this wallet,
+// so it does not require Sepolia ETH.
 const newLabWallet =
   ethers.Wallet.createRandom().connect(provider);
 
+// Smart contract ABI
 const abi = [
   "function owner() view returns (address)",
   "function qualityLab() view returns (address)",
@@ -58,7 +61,7 @@ const asNewLab = new ethers.Contract(
 );
 
 // =========================================
-// 2. TAO FILE KET QUA
+// 2. EXPERIMENTAL RESULT FILE
 // =========================================
 
 const runId = new Date()
@@ -82,6 +85,7 @@ const report = {
   permissionChecks: []
 };
 
+// Save the experimental results to a JSON file.
 function save() {
   fs.mkdirSync("results", {
     recursive: true
@@ -95,13 +99,16 @@ function save() {
 }
 
 // =========================================
-// 3. GUI GIAO DICH DOI QUALITYLAB
+// 3. SUBMIT AND RECORD QUALITYLAB UPDATES
 // =========================================
 
+// Submit an on-chain setQualityLab transaction
+// and record its receipt, gas usage, and latency.
 async function sendRecorded(label, destination) {
   const startedUtc = new Date().toISOString();
   const started = performance.now();
 
+  // Submit the role assignment transaction.
   const tx = await asOwner.setQualityLab(destination);
   const hashAt = performance.now();
 
@@ -116,16 +123,18 @@ async function sendRecorded(label, destination) {
   report.transactions.push(record);
   save();
 
-  console.log(`${label} Tx: ${tx.hash}`);
+  console.log(`${label} transaction hash: ${tx.hash}`);
 
+  // Wait for one blockchain confirmation.
   const receipt = await tx.wait(1);
   const receivedAt = performance.now();
 
   assert.ok(
     receipt,
-    `Khong co receipt cho ${label}`
+    `Transaction receipt was not received for ${label}`
   );
 
+  // Record the transaction execution results.
   Object.assign(record, {
     status:
       receipt.status === 1
@@ -155,12 +164,14 @@ async function sendRecorded(label, destination) {
 
   save();
 
+  // Verify successful on-chain execution.
   assert.equal(
     receipt.status,
     1,
-    `${label} that bai`
+    `${label} transaction failed`
   );
 
+  // Retrieve and save the original blockchain receipt.
   const rawReceipt = await provider.send(
     "eth_getTransactionReceipt",
     [tx.hash]
@@ -173,16 +184,19 @@ async function sendRecorded(label, destination) {
   );
 
   console.log(
-    `${label}: PASS | Gas: ${record.gasUsed}`
+    `${label}: PASS | Gas used: ${record.gasUsed}`
   );
 
   return receipt;
 }
 
 // =========================================
-// 4. KIEM TRA VI CU MAT QUYEN
+// 4. VERIFY THAT THE PREVIOUS LAB IS REJECTED
 // =========================================
 
+// After transferring the qualityLab role,
+// verify that the previous laboratory wallet
+// can no longer update a batch.
 async function checkOldLabRejected() {
   let caught = null;
 
@@ -196,21 +210,26 @@ async function checkOldLabRejected() {
     caught = error;
   }
 
+  // The previous laboratory must be rejected.
   assert.ok(
     caught,
-    "Vi cu van update duoc - FAIL"
+    "The previous qualityLab wallet can still update the batch - TEST FAILED"
   );
 
+  // Only an EVM revert is accepted.
+  // Network or RPC failures must not count as PASS.
   assert.ok(
     ethers.isError(caught, "CALL_EXCEPTION"),
-    `Loi khong phai EVM revert: ${caught.code ?? "unknown"}`
+    `The error is not an EVM revert: ${caught.code ?? "unknown"}`
   );
 
+  // Verify the exact revert reason.
   assert.equal(
     caught.reason,
     "Not authorized: only quality lab"
   );
 
+  // Record the authorization test result.
   report.permissionChecks.push({
     who: "oldLab",
     mode: "staticCall",
@@ -223,12 +242,12 @@ async function checkOldLabRejected() {
   save();
 
   console.log(
-    "Vi qualityLab cu bi tu choi: PASS"
+    "Previous qualityLab wallet rejected as expected: PASS"
   );
 }
 
 // =========================================
-// 5. CHUONG TRINH CHINH
+// 5. MAIN TEST PROCEDURE
 // =========================================
 
 async function main() {
@@ -239,23 +258,26 @@ async function main() {
   let restored = false;
 
   try {
-    console.log("===== BAT DAU TC-07 =====");
+    console.log("===== STARTING TC-07 =====");
 
+    // 5.1. Verify the Ethereum Sepolia network.
     const network = await provider.getNetwork();
 
     assert.equal(
       network.chainId,
       11155111n,
-      "Khong phai Sepolia"
+      "The RPC endpoint is not connected to Ethereum Sepolia"
     );
 
+    // Verify that a smart contract exists
+    // at the configured address.
     assert.notEqual(
       await provider.getCode(ADDRESS),
       "0x",
-      "Khong co contract tai dia chi"
+      "No smart contract exists at the specified address"
     );
 
-    // Kiem tra trang thai ban dau
+    // 5.2. Verify the initial contract state.
     const [owner, qualityLab, count, batch] =
       await Promise.all([
         asOwner.owner(),
@@ -264,27 +286,32 @@ async function main() {
         asOwner.getBatch(BATCH_ID)
       ]);
 
+    // Verify that the connected wallet is the owner.
     assert.equal(
       owner.toLowerCase(),
       ownerWallet.address.toLowerCase(),
-      "Vi trong .env khong phai owner"
+      "The wallet configured in .env is not the contract owner"
     );
 
+    // Verify that the original qualityLab
+    // is still assigned to the owner wallet.
     assert.equal(
       qualityLab.toLowerCase(),
       ownerWallet.address.toLowerCase(),
-      "qualityLab da duoc chuyen; khong chay script"
+      "The qualityLab role has already been transferred; do not execute this test"
     );
 
+    // Verify that Batch 2 exists.
     assert.ok(
       count >= BATCH_ID,
-      "Chua co Batch ID 2"
+      "Batch ID 2 does not exist"
     );
 
+    // Batch 2 must still be in the Created state.
     assert.equal(
       batch.status,
       0n,
-      "Batch 2 khong con o trang thai Created"
+      "Batch 2 is no longer in the Created state"
     );
 
     originalLab = qualityLab;
@@ -299,53 +326,56 @@ async function main() {
     save();
 
     console.log(
-      "Owner va qualityLab cu:",
+      "Contract owner and original qualityLab:",
       originalLab
     );
 
     console.log(
-      "QualityLab moi:",
+      "New qualityLab address:",
       newLabWallet.address
     );
 
     console.log(
-      "Batch kiem tra quyen: 2 (khong sua du lieu)"
+      "Batch used for permission testing: 2 (no batch data modification)"
     );
 
     // =====================================
-    // BUOC 1: CHUYEN QUYEN
+    // STEP 1: TRANSFER THE QUALITYLAB ROLE
     // =====================================
 
     console.log(
-      "\n===== BUOC 1: CHUYEN QUYEN SANG VI MOI ====="
+      "\n===== STEP 1: TRANSFER QUALITYLAB ROLE TO NEW WALLET ====="
     );
 
+    // Assign the qualityLab role to the new wallet.
     await sendRecorded(
       "set-new-lab",
       newLabWallet.address
     );
 
+    // Read the updated qualityLab address.
     const actualLab =
       await asOwner.qualityLab();
 
     assert.equal(
       actualLab.toLowerCase(),
       newLabWallet.address.toLowerCase(),
-      "Khong chuyen duoc qualityLab"
+      "The qualityLab role was not transferred successfully"
     );
 
-    console.log("Doc lai qualityLab: PASS");
+    console.log("Updated qualityLab address verified: PASS");
 
     // =====================================
-    // BUOC 2: VI MOI DUOC CAP QUYEN
+    // STEP 2: VERIFY NEW LAB AUTHORIZATION
     // =====================================
 
     console.log(
-      "\n===== BUOC 2: KIEM TRA VI MOI DUOC CAP QUYEN ====="
+      "\n===== STEP 2: VERIFY NEW QUALITYLAB AUTHORIZATION ====="
     );
 
-    // staticCall: mo phong thanh cong,
-    // khong cap nhat Batch 2 that.
+    // Use staticCall to simulate an authorized update.
+    // No actual transaction is broadcast,
+    // and Batch 2 remains unchanged.
     await asNewLab.updateStatus.staticCall(
       BATCH_ID,
       1,
@@ -363,27 +393,29 @@ async function main() {
     save();
 
     console.log(
-      "Vi moi staticCall updateStatus thanh cong: PASS"
+      "New qualityLab wallet successfully passed the updateStatus staticCall: PASS"
     );
 
     // =====================================
-    // BUOC 3: VI CU BI TU CHOI
+    // STEP 3: VERIFY OLD LAB REVOCATION
     // =====================================
 
     console.log(
-      "\n===== BUOC 3: KIEM TRA VI CU MAT QUYEN ====="
+      "\n===== STEP 3: VERIFY PREVIOUS QUALITYLAB ACCESS REVOCATION ====="
     );
 
+    // Verify that the previous qualityLab wallet
+    // no longer has authorization.
     await checkOldLabRejected();
 
-    // Xac nhan staticCall khong sua Batch 2
+    // Confirm that staticCall did not modify Batch 2.
     const afterCheck =
       await asOwner.getBatch(BATCH_ID);
 
     assert.equal(
       afterCheck.status,
       batch.status,
-      "Batch 2 da thay doi"
+      "Batch 2 was modified during permission testing"
     );
 
     checksPassed = true;
@@ -392,22 +424,25 @@ async function main() {
     report.error = error.message;
 
     console.error(
-      "TC-07 gap loi:",
+      "TC-07 ENCOUNTERED AN ERROR:",
       error.message
     );
 
   } finally {
 
     // =====================================
-    // BUOC 4: LUON CO GANG KHOI PHUC
+    // STEP 4: ATTEMPT TO RESTORE ORIGINAL ROLE
     // =====================================
 
+    // Always attempt to restore the original
+    // qualityLab assignment if it was recorded.
     if (originalLab) {
       console.log(
-        "\n===== BUOC 4: KHOI PHUC QUALITYLAB BAN DAU ====="
+        "\n===== STEP 4: RESTORE ORIGINAL QUALITYLAB ROLE ====="
       );
 
       try {
+        // Read the current qualityLab address.
         const current =
           await asOwner.qualityLab();
 
@@ -415,10 +450,11 @@ async function main() {
           current.toLowerCase() ===
           originalLab.toLowerCase()
         ) {
+          // The original address is already assigned.
           restored = true;
 
           console.log(
-            "QualityLab da o dia chi ban dau; khong can khoi phuc."
+            "qualityLab is already assigned to the original address; restoration is unnecessary."
           );
 
         } else if (
@@ -426,29 +462,32 @@ async function main() {
           newLabWallet.address.toLowerCase()
         ) {
 
+          // Restore the previous qualityLab address.
           await sendRecorded(
             "restore-old-lab",
             originalLab
           );
 
+          // Verify that the original address was restored.
           const checked =
             await asOwner.qualityLab();
 
           assert.equal(
             checked.toLowerCase(),
             originalLab.toLowerCase(),
-            "Khoi phuc that bai"
+            "Failed to restore the original qualityLab address"
           );
 
           restored = true;
 
           console.log(
-            "Khoi phuc quyen: PASS"
+            "Original qualityLab role restored: PASS"
           );
 
         } else {
+          // An unexpected qualityLab address was detected.
           throw new Error(
-            `qualityLab dang o dia chi khong mong doi: ${current}`
+            `qualityLab is assigned to an unexpected address: ${current}`
           );
         }
 
@@ -457,15 +496,19 @@ async function main() {
           restoreError.message;
 
         console.error(
-          "CANH BAO: CHUA XAC NHAN DUOC KHOI PHUC QUALITYLAB:",
+          "WARNING: ORIGINAL QUALITYLAB RESTORATION HAS NOT BEEN CONFIRMED:",
           restoreError.message
         );
 
         console.error(
-          "Can kiem tra va khoi phuc bang owner truoc TC tiep theo."
+          "Verify and restore the qualityLab role using the owner wallet before continuing with subsequent tests."
         );
       }
     }
+
+    // =====================================
+    // 6. RECORD FINAL EXPERIMENTAL RESULTS
+    // =====================================
 
     report.restoredOriginalLab = restored;
 
@@ -481,7 +524,7 @@ async function main() {
     );
 
     console.log(
-      "Da luu:",
+      "Experimental results saved to:",
       resultPath
     );
 

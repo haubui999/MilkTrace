@@ -5,7 +5,7 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 
 // ===================================
-// 1. CAU HINH
+// 1. BLOCKCHAIN CONNECTION CONFIGURATION
 // ===================================
 
 const RPC_URL =
@@ -15,6 +15,8 @@ const RPC_URL =
 const ADDRESS = process.env.CONTRACT_ADDRESS;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
+// Batch 2 was created during TC-02.
+// Its initial status must be Created (0).
 const BATCH_ID = 2n;
 const NOTE = "WEB_TC8";
 
@@ -24,13 +26,14 @@ if (
   !PRIVATE_KEY
 ) {
   throw new Error(
-    "Thieu PRIVATE_KEY / CONTRACT_ADDRESS hop le trong .env"
+    "Missing PRIVATE_KEY or a valid CONTRACT_ADDRESS in the .env file"
   );
 }
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
 
+// Smart contract ABI
 const abi = [
   "function qualityLab() view returns(address)",
   "function getBatch(uint256) view returns(tuple(uint256 id,string name,string productionDate,string factory,string ipfsHash,uint8 status))",
@@ -45,7 +48,7 @@ const contract = new ethers.Contract(
 );
 
 // ===================================
-// 2. TAO FILE KET QUA
+// 2. EXPERIMENTAL RESULT FILE
 // ===================================
 
 const runId = new Date()
@@ -66,6 +69,7 @@ const report = {
   uiVerification: "PENDING_MANUAL_SCREENSHOTS"
 };
 
+// Save experimental evidence to a JSON file.
 function save() {
   fs.mkdirSync("results", {
     recursive: true
@@ -78,6 +82,8 @@ function save() {
   );
 }
 
+// Convert on-chain batch data into
+// a JSON-serializable object.
 function fields(batch) {
   return {
     id: batch.id.toString(),
@@ -90,36 +96,40 @@ function fields(batch) {
 }
 
 // ===================================
-// 3. CHUONG TRINH CHINH
+// 3. MAIN TEST PROCEDURE
 // ===================================
 
 async function main() {
   save();
 
   try {
+    // 3.1. Verify the Ethereum Sepolia network.
     const net = await provider.getNetwork();
 
     assert.equal(
       net.chainId,
       11155111n,
-      "RPC khong phai Sepolia"
+      "The RPC endpoint is not connected to Ethereum Sepolia"
     );
 
+    // Verify that a smart contract exists
+    // at the configured address.
     assert.notEqual(
       await provider.getCode(ADDRESS),
       "0x",
-      "Khong co contract"
+      "No smart contract exists at the specified address"
     );
 
+    // 3.2. Verify qualityLab authorization.
     const lab = await contract.qualityLab();
 
     assert.equal(
       lab.toLowerCase(),
       wallet.address.toLowerCase(),
-      "Vi hien tai khong phai qualityLab"
+      "The connected wallet is not the authorized quality laboratory"
     );
 
-    // Kiem tra Batch 2 truoc cap nhat
+    // 3.3. Read Batch 2 before updating its status.
     const before = await contract.getBatch(BATCH_ID);
 
     report.before = fields(before);
@@ -127,31 +137,36 @@ async function main() {
 
     assert.equal(before.id, BATCH_ID);
 
+    // Batch 2 must still be in Created (0).
+    // Do not rerun if its status has already changed.
     assert.equal(
       before.status,
       0n,
-      "Batch 2 khong con Created (0). KHONG chay lai!"
+      "Batch 2 is no longer in Created (0). Do not rerun this test!"
     );
 
-    console.log("===== BAT DAU TC-08 =====");
-    console.log("Contract:", ADDRESS);
+    console.log("===== STARTING TC-08 =====");
+    console.log("Contract address:", ADDRESS);
     console.log("Batch ID:", BATCH_ID.toString());
-    console.log("Trang thai ban dau: Created (0)");
-    console.log("San pham:", before.name);
+    console.log("Initial status: Created (0)");
+    console.log("Product name:", before.name);
 
     // ===================================
-    // 4. GUI GIAO DICH 0 -> 1
+    // 4. SUBMIT STATUS UPDATE (0 -> 1)
     // ===================================
 
+    // Record the transaction start time.
     const startUtc = new Date().toISOString();
     const t0 = performance.now();
 
+    // Update Batch 2 from Created to Checked.
     const tx = await contract.updateStatus(
       BATCH_ID,
       1,
       NOTE
     );
 
+    // Record when the transaction hash is received.
     const t1 = performance.now();
 
     report.transaction = {
@@ -163,17 +178,20 @@ async function main() {
 
     save();
 
-    console.log("Tx hash:", tx.hash);
-    console.log("Dang cho xac nhan...");
+    console.log("Transaction hash:", tx.hash);
+    console.log("Waiting for transaction confirmation...");
 
+    // Wait for one blockchain confirmation.
     const receipt = await tx.wait(1);
     const t2 = performance.now();
 
     assert.ok(
       receipt,
-      "Khong nhan duoc receipt"
+      "Transaction receipt was not received"
     );
 
+    // Record transaction status, gas consumption,
+    // transaction fee, and client-observed latency.
     Object.assign(report.transaction, {
       status:
         receipt.status === 1
@@ -206,16 +224,19 @@ async function main() {
 
     save();
 
+    // Verify successful transaction execution.
     assert.equal(
       receipt.status,
       1,
-      "Giao dich that bai"
+      "The status update transaction failed"
     );
 
     // ===================================
-    // 5. KIEM TRA EVENT
+    // 5. VERIFY THE StatusUpdated EVENT
     // ===================================
 
+    // Find the StatusUpdated event
+    // emitted by the MilkTrace contract.
     const event = receipt.logs
       .filter(
         log =>
@@ -235,17 +256,20 @@ async function main() {
 
     assert.ok(
       event,
-      "Khong tim thay StatusUpdated"
+      "StatusUpdated event was not found"
     );
 
+    // Verify the event parameters.
     assert.equal(event.args[0], BATCH_ID);
     assert.equal(event.args[1], 1n);
     assert.equal(event.args[2], NOTE);
 
     // ===================================
-    // 6. DOC LAI DU LIEU
+    // 6. VERIFY UPDATED ON-CHAIN BATCH DATA
     // ===================================
 
+    // Measure the time required to retrieve
+    // updated batch data from the blockchain.
     const readStart = performance.now();
 
     const after = await contract.getBatch(BATCH_ID);
@@ -255,9 +279,11 @@ async function main() {
 
     report.after = fields(after);
 
+    // Verify the new status: Checked (1).
     assert.equal(after.status, 1n);
 
-    // Cac truong khac khong duoc thay doi
+    // Verify that all other batch attributes
+    // remain unchanged after the status update.
     for (const key of [
       "id",
       "name",
@@ -268,32 +294,39 @@ async function main() {
       assert.equal(
         report.after[key],
         report.before[key],
-        `${key} da bi thay doi`
+        `${key} was unexpectedly modified`
       );
     }
 
     // ===================================
-    // 7. LUU RECEIPT
+    // 7. SAVE ORIGINAL TRANSACTION RECEIPT
     // ===================================
 
+    // Retrieve the raw blockchain transaction receipt.
     const rawReceipt = await provider.send(
       "eth_getTransactionReceipt",
       [tx.hash]
     );
 
+    // Save the original receipt for reproducibility.
     fs.writeFileSync(
       `results/TC08-receipt-${runId}.json`,
       JSON.stringify(rawReceipt, null, 2),
       "utf8"
     );
 
-    // CHUA danh dau PASS toan bo TC08,
-    // vi phai kiem tra giao dien thuc te.
+    // ===================================
+    // 8. RECORD ON-CHAIN TEST RESULTS
+    // ===================================
+
+    // Do not mark TC-08 as fully passed yet.
+    // Manual verification of the website interface
+    // and screenshot evidence are still required.
     report.status = "ONCHAIN_PASS_UI_PENDING";
     save();
 
     console.log(
-      "Giao dich / event / du lieu on-chain: PASS"
+      "On-chain transaction, event, and data verification: PASS"
     );
 
     console.log(
@@ -302,24 +335,27 @@ async function main() {
     );
 
     console.log(
-      "Thoi gian:",
+      "Total transaction latency:",
       report.transaction.totalSeconds.toFixed(3),
-      "giay"
+      "seconds"
     );
 
     console.log(
-      "Trang thai moi: Checked (1)"
+      "Updated batch status: Checked (1)"
     );
 
     console.log(
-      "Hay F5 trang ?id=2 va chup anh giao dien."
+      "Refresh the MilkTrace webpage using ?id=2 and capture screenshots."
     );
 
     console.log(
-      "TC-08 chi PASS hoan toan sau khi doi chieu UI."
+      "TC-08 is considered fully passed only after manual UI verification."
     );
 
-    console.log("Da luu:", resultPath);
+    console.log(
+      "Experimental results saved to:",
+      resultPath
+    );
 
   } catch (error) {
     report.status = "FAIL_OR_INCOMPLETE";
@@ -327,12 +363,12 @@ async function main() {
     save();
 
     console.error(
-      "TC-08 gap loi:",
+      "TC-08 FAILED OR INCOMPLETE:",
       error.message
     );
 
     console.error(
-      "Neu da co tx hash, KHONG chay lai truoc khi kiem tra receipt."
+      "If a transaction hash exists, inspect its on-chain receipt before rerunning this test."
     );
 
     process.exitCode = 1;
