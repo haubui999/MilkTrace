@@ -1,0 +1,52 @@
+{
+  "testCase": "TC-04",
+  "network": "Sepolia",
+  "contractAddress": "0xAf3A0D87189d979f2052266218A518F1c616f511",
+  "unauthorizedWallet": "0xa030D01ecE7704b127FE06e70C90f5076e5EF063",
+  "method": "eth_call/staticCall",
+  "status": "PASS",
+  "timestampUtc": "2026-11-08T05:10:16.626Z",
+  "cases": [
+    {
+      "function": "createBatch",
+      "expectedReason": "Not authorized: only owner",
+      "actualReason": "Not authorized: only owner",
+      "status": "PASS",
+      "durationSeconds": 0.1467944,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "function": "updateStatus",
+      "expectedReason": "Not authorized: only quality lab",
+      "actualReason": "Not authorized: only quality lab",
+      "status": "PASS",
+      "durationSeconds": 0.1649731999999999,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "function": "setQualityLab",
+      "expectedReason": "Not authorized: only owner",
+      "actualReason": "Not authorized: only owner",
+      "status": "PASS",
+      "durationSeconds": 0.2707507999999998,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    }
+  ],
+  "before": {
+    "owner": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "batchCount": "3",
+    "batch2Status": "0",
+    "batch2Name": "Fresh Milk 1L"
+  },
+  "after": {
+    "owner": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "batchCount": "3",
+    "batch2Status": "0",
+    "batch2Name": "Fresh Milk 1L"
+  }
+}

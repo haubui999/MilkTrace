@@ -1,0 +1,61 @@
+{
+  "testCase": "TC-06",
+  "status": "PASS",
+  "network": "Ethereum Sepolia",
+  "chainId": 11155111,
+  "contractAddress": "0xAf3A0D87189d979f2052266218A518F1c616f511",
+  "walletAddress": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "timestampUtc": "2026-11-08T05:12:54.263Z",
+  "purpose": "Test direct status transition from Created (0) to Distributed (3)",
+  "input": {
+    "name": "Fresh Milk 1L",
+    "productionDate": "2026-11-08",
+    "factory": "Dairy Processing Plant, Binh Duong",
+    "ipfsHash": "CID_TC06_DEMO_NOT_VERIFIED"
+  },
+  "updateNote": "JUMP_03",
+  "steps": [
+    {
+      "action": "createBatch",
+      "status": "PASS",
+      "transactionHash": "0x1f10f3304c3241fb0c6a62a9140f564fe1cabb779cb71588aee36cc2521ad51c",
+      "startUtc": "2026-11-08T05:12:54.954Z",
+      "hashReceivedUtc": "2026-11-08T05:12:55.932Z",
+      "batchId": "4",
+      "blockNumber": 12088554,
+      "gasUsed": "815501",
+      "gasPriceWei": "17",
+      "transactionFeeWei": "13863517",
+      "totalSeconds": 9.8482585,
+      "timeToHashSeconds": 0.9780457,
+      "waitForReceiptSeconds": 8.870212800000001,
+      "statusAfter": "0",
+      "eventVerified": true
+    },
+    {
+      "action": "updateStatus",
+      "fromStatus": 0,
+      "toStatus": 3,
+      "note": "JUMP_03",
+      "noteBytes": 7,
+      "status": "PASS",
+      "transactionHash": "0xb1e5e8ce2a3f831da68428631302f196c2a79d53bae421d0bb4c5a2a2f1da191",
+      "startUtc": "2026-11-08T05:13:05.286Z",
+      "hashReceivedUtc": "2026-11-08T05:13:06.204Z",
+      "batchId": "4",
+      "blockNumber": 12088555,
+      "gasUsed": "134544",
+      "gasPriceWei": "17",
+      "transactionFeeWei": "2287248",
+      "totalSeconds": 9.6767054,
+      "timeToHashSeconds": 0.9183336,
+      "waitForReceiptSeconds": 8.758371799999999,
+      "getBatchSeconds": 0.15644470000000002,
+      "statusAfter": "3",
+      "eventVerified": true
+    }
+  ],
+  "batchCountBefore": "3",
+  "batchId": "4",
+  "finding": "The contract permits a direct transition from Created (0) to Distributed (3), bypassing the intermediate quality states"
+}

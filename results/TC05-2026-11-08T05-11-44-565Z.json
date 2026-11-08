@@ -1,0 +1,60 @@
+{
+  "testCase": "TC-05",
+  "status": "PASS",
+  "timestampUtc": "2026-11-08T05:11:44.570Z",
+  "network": "Ethereum Sepolia",
+  "contractAddress": "0xAf3A0D87189d979f2052266218A518F1c616f511",
+  "walletAddress": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+  "method": "eth_call (no transaction broadcast)",
+  "cases": [
+    {
+      "name": "updateStatus(ID=0)",
+      "status": "PASS",
+      "expectedReason": "Invalid batch ID",
+      "actualReason": "Invalid batch ID",
+      "observedCallSeconds": 0.12921360000000004,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "name": "updateStatus(ID=4)",
+      "status": "PASS",
+      "expectedReason": "Invalid batch ID",
+      "actualReason": "Invalid batch ID",
+      "observedCallSeconds": 0.1412943,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "name": "getBatch(ID=0)",
+      "status": "PASS",
+      "expectedReason": "Invalid ID",
+      "actualReason": "Invalid ID",
+      "observedCallSeconds": 0.1366873999999998,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    },
+    {
+      "name": "getBatch(ID=4)",
+      "status": "PASS",
+      "expectedReason": "Invalid ID",
+      "actualReason": "Invalid ID",
+      "observedCallSeconds": 0.13288720000000012,
+      "transactionHash": null,
+      "onchainGasUsed": null
+    }
+  ],
+  "before": {
+    "batchCount": "3",
+    "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "batch1Status": "3",
+    "batch2Status": "0"
+  },
+  "invalidHighId": "4",
+  "after": {
+    "batchCount": "3",
+    "qualityLab": "0x5a797324f5Ea37f059cBccA86E9b7130d600162f",
+    "batch1Status": "3",
+    "batch2Status": "0"
+  }
+}

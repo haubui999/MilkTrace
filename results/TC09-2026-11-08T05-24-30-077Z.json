@@ -1,0 +1,38 @@
+{
+  "testCase": "TC-09",
+  "contractAddress": "0xAf3A0D87189d979f2052266218A518F1c616f511",
+  "network": "Ethereum Sepolia",
+  "timestampUtc": "2026-11-08T05:24:30.078Z",
+  "method": "eth_call + manual UI verification",
+  "status": "ONCHAIN_PASS_UI_PENDING",
+  "checks": [
+    {
+      "type": "NO_ID",
+      "status": "ONCHAIN_PASS_UI_PENDING",
+      "expectedBatchId": "4",
+      "expectedName": "Fresh Milk 1L",
+      "expectedProductionDate": "2026-11-08",
+      "expectedFactory": "Dairy Processing Plant, Binh Duong",
+      "expectedStatusCode": "3",
+      "expectedStatusText": "Distributed"
+    },
+    {
+      "type": "INVALID_ID",
+      "batchId": "0",
+      "status": "PASS",
+      "revertReason": "Invalid ID",
+      "onchainGasUsed": null,
+      "transactionHash": null
+    },
+    {
+      "type": "INVALID_ID",
+      "batchId": "5",
+      "status": "PASS",
+      "revertReason": "Invalid ID",
+      "onchainGasUsed": null,
+      "transactionHash": null
+    }
+  ],
+  "batchCount": "4",
+  "expectedInvalidHighId": "5"
+}
