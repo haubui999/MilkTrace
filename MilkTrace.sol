@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract VinamilkTrace {
+contract MilkTrace {
     // ----------------- KHAI BÁO TRẠNG THÁI -----------------
     enum BatchStatus { Created, Checked, Approved, Distributed }
 
